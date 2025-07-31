@@ -1,40 +1,51 @@
 use std::fs::File;
 use std::io::{self, BufRead};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use sysinfo::System;
 
-enum EXPRESSIONS {
+#[derive(Clone)]
+pub enum EXPRESSIONS {
     NAME,
-    OS,
+    RELEASE_TYPE,
     KERNEL,
     ASCII,
 }
 
 //-----------------------------
 
-struct module {
+pub struct Module {
     bullets: Vec<EXPRESSIONS>,
-    paths: Vec<std::path::PathBuf>,
+    paths: Vec<PathBuf>,
 }
 
 //-----------------------------
 
-impl module {
+impl Module {
+    pub fn new(bullets: Vec<EXPRESSIONS>) -> Self {
+        let mut paths = Vec::new();
+        paths.push(Path::new("ascii.txt").to_path_buf());
 
-    pub fn format_bullets(&self) {
+        Module { bullets, paths }
+    }
+
+    pub fn format_bullets(&mut self) -> Vec<String> {
         let mut return_value = Vec::new();
 
-        match self.bullets {
-            NAME -> {
-                return_value.push(self.name())
-            }
-            OS -> {
-                return_value.push(self.os())
-            }
-            KERNEL -> {
-                return_value.push(self.kernel())
-            }
-            ASCII -> {
-                self.ascii(&mut return_value)
+        let bullets = self.bullets.clone(); // avoid immutable + mutable borrow
+        for bullet in bullets {
+            match bullet {
+                EXPRESSIONS::NAME => {
+                    return_value.push(self.name());
+                }
+                EXPRESSIONS::RELEASE_TYPE => {
+                    return_value.push(self.release_type());
+                }
+                EXPRESSIONS::KERNEL => {
+                    return_value.push(self.kernel());
+                }
+                EXPRESSIONS::ASCII => {
+                    return_value.append(&mut self.ascii());
+                }
             }
         }
 
@@ -43,44 +54,38 @@ impl module {
 
     //-------------------------
 
-    // Returns the name of the system
-    fn name() -> String {
-        System::name().unwrap_or("Unknown".to_string())
+    fn name(&self) -> String {
+        System::name().unwrap_or_else(|| "Unknown".to_string())
+    }
+
+    fn release_type(&self) -> String {
+        System::os_version().unwrap_or_else(|| "Unknown".to_string())
+    }
+
+    fn kernel(&self) -> String {
+        System::kernel_version().unwrap_or_else(|| "Unknown".to_string())
     }
 
     //-------------------------
 
-    // Returns the name of the os
-    fn os() -> String {
-        System::os().unwrap_or("Unknown".to_string())
-    }
+    fn ascii(&mut self) -> Vec<String> {
+        let mut return_value = Vec::new();
 
-    //-------------------------
-
-    // Return the kernel version
-    fn kernel() -> String {
-        System::kernel_version().unwrap_or("Unknown".to_string())
-    }
-
-    //-------------------------
-
-    // Returns the content of a txt file line by line
-    fn ascii(&return_value: &mut Vec<String>) {
-        let path = self.paths.pop();
-        if let Ok(lines) = read_lines(Path) {
-            for line in lines.map_while(Result::ok) {
-                return_value.push(line)
+        if let Some(path) = self.paths.pop() {
+            if let Ok(lines) = Self::read_lines(&path) {
+                for line in lines.flatten() {
+                    return_value.push(line);
+                }
             }
         }
+
+        return_value
     }
 
     //-------------------------
 
-    fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>> {
-        where P: AsRef<Path>, {
+    fn read_lines<P: AsRef<Path>>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>> {
         let file = File::open(filename)?;
         Ok(io::BufReader::new(file).lines())
-        }
     }
-
 }

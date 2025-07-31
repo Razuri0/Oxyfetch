@@ -1,7 +1,9 @@
 use clap::Parser;
 use sysinfo::{
-    Components, Disks, Networks, System,
+    System,
 };
+mod module;
+use module::{Module, EXPRESSIONS};
 
 #[derive(Parser)]
 struct Args {
@@ -19,7 +21,13 @@ fn main() {
     let mut sys = System::new_all();
     sys.refresh_all();
 
-    println!("Kernel Name: {}", System::name().unwrap_or("Unknown".to_string()));
-    println!("Kernel: {}", System::kernel_version().unwrap_or("Unknown".to_string()));
+    let mut models = Vec::new();
+    models.push(EXPRESSIONS::NAME);
+    models.push(EXPRESSIONS::KERNEL);
+    models.push(EXPRESSIONS::RELEASE_TYPE);
+    let mut output = Module::new(models);
+    for bullet in output.format_bullets() {
+        println!("{}", bullet);
+    }
 
 }
