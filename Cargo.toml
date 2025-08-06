@@ -7,3 +7,5 @@ author = "Razurio"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 sysinfo = "0.36.1"
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"

@@ -1,21 +1,22 @@
 use clap::Parser;
-use sysinfo::{
-    System,
-};
+use sysinfo::System;
+
 mod module;
 use module::{Module, EXPRESSIONS};
+
+mod config_reader;
+use config_reader::config_reader;
 
 #[derive(Parser)]
 struct Args {
     #[arg(long, default_value = "false")]
-    noart: String,
-
-    #[arg(long, default_value = "false")]
-    notext: String,
+    config: bool,
 }
 
 fn main() {
     let args = Args::parse();
+
+    let config = config_reader();
 
 
     let mut sys = System::new_all();

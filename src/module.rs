@@ -1,55 +1,56 @@
 use std::fs::File;
 use std::io::{self, BufRead};
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use sysinfo::System;
+
+use config_reader::{read_config, Config, TileConfig};
 
 #[derive(Clone)]
 pub enum EXPRESSIONS {
     NAME,
-    RELEASE_TYPE,
+    RELEASE_CYCLE,
     KERNEL,
     ASCII,
 }
 
-//-----------------------------
-
-pub struct Module {
-    bullets: Vec<EXPRESSIONS>,
-    paths: Vec<PathBuf>,
+pub struct Bullet {
+    pub module: EXPRESSIONS,
+    pub value: String,
 }
 
 //-----------------------------
 
-impl Module {
-    pub fn new(bullets: Vec<EXPRESSIONS>) -> Self {
-        let mut paths = Vec::new();
-        paths.push(Path::new("ascii.txt").to_path_buf());
+pub struct Tile {
+    data: String,
+    line: u16,
+    row: u16,
+}
 
-        Module { bullets, paths }
-    }
+//-----------------------------
 
-    pub fn format_bullets(&mut self) -> Vec<String> {
-        let mut return_value = Vec::new();
+impl Tile {
+    
+    pub fn new(config: TileConfig) {
 
-        let bullets = self.bullets.clone(); // avoid immutable + mutable borrow
-        for bullet in bullets {
-            match bullet {
-                EXPRESSIONS::NAME => {
-                    return_value.push(self.name());
-                }
-                EXPRESSIONS::RELEASE_TYPE => {
-                    return_value.push(self.release_type());
-                }
-                EXPRESSIONS::KERNEL => {
-                    return_value.push(self.kernel());
-                }
-                EXPRESSIONS::ASCII => {
-                    return_value.append(&mut self.ascii());
+        let mut tile = Tile {
+            data: String::new(),
+            line: config.line,
+            row: config.row,
+        };
+
+        for lines in config.tile_modules.unwrap_or_default() {
+            for rows in lines {
+                match rows.as_str() {
+                    "name" => tile.data.push_str(&format!("{}", tile.name())),
+                    "release_cycle" => tile.data.push_str(&format!("{}", tile.release_cycle())),
+                    "kernel" => tile.data.push_str(&format!("{}", tile.kernel())),
+                    "ascii" => tile.data.push_str(&format!("{}", tile.ascii(&config))),
+                    _ => eprintln!("{}", rows),
                 }
             }
+            tile.data.push('\n');
         }
 
-        return_value
     }
 
     //-------------------------
@@ -58,7 +59,7 @@ impl Module {
         System::name().unwrap_or_else(|| "Unknown".to_string())
     }
 
-    fn release_type(&self) -> String {
+    fn release_cycle(&self) -> String {
         System::os_version().unwrap_or_else(|| "Unknown".to_string())
     }
 
@@ -68,18 +69,16 @@ impl Module {
 
     //-------------------------
 
-    fn ascii(&mut self) -> Vec<String> {
-        let mut return_value = Vec::new();
-
-        if let Some(path) = self.paths.pop() {
-            if let Ok(lines) = Self::read_lines(&path) {
-                for line in lines.flatten() {
-                    return_value.push(line);
-                }
+    fn ascii(&self, tile: &TileConfig) -> String {
+        if let Some(ascii_art) = &tile.ascii_art {
+            if let Ok(lines) = Self::read_lines(ascii_art) {
+                lines.filter_map(Result::ok).collect::<Vec<String>>().join("\n")
+            } else {
+                "Error reading ASCII art".to_string()
             }
+        } else {
+            "No ASCII art provided".to_string()
         }
-
-        return_value
     }
 
     //-------------------------

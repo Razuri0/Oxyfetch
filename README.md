@@ -1,5 +1,5 @@
 # Oxyfetch
 
-lightweigth alternative to Neofetch or Fastfetch.
+a modular alternative to Neofetch or Fastfetch.
 
 VERY MUCH UNFINISHED
